@@ -1,4 +1,4 @@
-import type { PaceUnit } from "../lib/pace";
+import { fromMetersPerSecond, toMetersPerSecond, type PaceUnit } from "../lib/pace";
 
 export interface ControlsState {
   startTime: string; // datetime-local value
@@ -25,6 +25,16 @@ const PACE_UNIT_LABELS: Record<PaceUnit, string> = {
 export function RouteControls({ value, onChange, onSubmit, disabled, loading }: Props) {
   function set<K extends keyof ControlsState>(key: K, v: ControlsState[K]) {
     onChange({ ...value, [key]: v });
+  }
+
+  /** Switching units converts the number in the box rather than relabeling it. */
+  function changeUnit(nextUnit: PaceUnit) {
+    const ms = toMetersPerSecond(value.paceValue, value.paceUnit);
+    onChange({
+      ...value,
+      paceUnit: nextUnit,
+      paceValue: ms > 0 ? fromMetersPerSecond(ms, nextUnit) : value.paceValue,
+    });
   }
 
   return (
@@ -58,7 +68,7 @@ export function RouteControls({ value, onChange, onSubmit, disabled, loading }: 
           />
           <select
             value={value.paceUnit}
-            onChange={(e) => set("paceUnit", e.target.value as PaceUnit)}
+            onChange={(e) => changeUnit(e.target.value as PaceUnit)}
           >
             {Object.entries(PACE_UNIT_LABELS).map(([unit, label]) => (
               <option key={unit} value={unit}>

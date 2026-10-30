@@ -4,9 +4,14 @@ import { RouteControls, type ControlsState } from "./components/RouteControls";
 import { MapView } from "./components/MapView";
 import { WindLegend } from "./components/WindLegend";
 import { parseGpx, sampleRouteByDistance, type ParsedRoute } from "./lib/gpx";
-import { estimateArrivalTimes, toMetersPerSecond, type TimedPoint } from "./lib/pace";
+import {
+  estimateArrivalTimes,
+  fromMetersPerSecond,
+  toMetersPerSecond,
+  type TimedPoint,
+} from "./lib/pace";
 import { fetchWindForRoute, type WindResult } from "./lib/wind";
-import { formatDistance, formatClockTime } from "./lib/units";
+import { formatDistance, formatClockTime, formatSpeed } from "./lib/units";
 
 const MI_IN_M = 1609.344;
 
@@ -56,6 +61,15 @@ export default function App() {
       const parsed = parseGpx(text);
       setRoute(parsed);
       setGpxError(null);
+      // A recorded ride carries its own timestamps; use the rider's actual
+      // moving speed instead of a guess. Planned routes keep the current pace.
+      if (parsed.movingSpeedMps) {
+        const speed = parsed.movingSpeedMps;
+        setControls((c) => ({
+          ...c,
+          paceValue: fromMetersPerSecond(speed, c.paceUnit),
+        }));
+      }
     } catch (err) {
       setRoute(null);
       setGpxError(err instanceof Error ? err.message : "Couldn't parse that GPX file.");
@@ -103,6 +117,12 @@ export default function App() {
           <div className="route-summary">
             <div>{route.name ?? "Route"}</div>
             <div>{formatDistance(route.totalDistanceM)} total</div>
+            {route.movingSpeedMps && (
+              <div>
+                Your moving avg: {formatSpeed(route.movingSpeedMps)} (stops
+                excluded)
+              </div>
+            )}
             {timedSamplePoints && (
               <div>Est. ride time: {formatDuration(rideDurationS)}</div>
             )}

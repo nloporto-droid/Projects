@@ -240,6 +240,15 @@ button[type="submit"]:disabled {
   white-space: nowrap;
 }
 
+.wind-dot {
+  width: 10px;
+  height: 10px;
+  margin: 1.5px;
+  border-radius: 50%;
+  border: 1.5px solid #1f2937;
+  box-sizing: content-box;
+}
+
 @media (max-width: 720px) {
   .app {
     flex-direction: column;

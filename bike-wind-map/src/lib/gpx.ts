@@ -12,7 +12,18 @@ export interface ParsedRoute {
   name?: string;
   points: RoutePoint[];
   totalDistanceM: number;
+  /**
+   * Average speed while actually moving (m/s), derived from the track's own
+   * timestamps. Undefined when the file has no usable timestamps (e.g. a
+   * planned route rather than a recorded ride).
+   */
+  movingSpeedMps?: number;
 }
+
+/** Segments slower than this (~1.1 mph) count as stopped, not riding. */
+const MOVING_THRESHOLD_MPS = 0.5;
+/** Need at least this much moving time before trusting a derived speed. */
+const MIN_MOVING_TIME_S = 60;
 
 /** Parses a GPX file's text into a route, using track points (or route points as fallback). */
 export function parseGpx(gpxText: string): ParsedRoute {
@@ -35,6 +46,7 @@ export function parseGpx(gpxText: string): ParsedRoute {
 
   const raw: LatLon[] = [];
   const elevations: (number | undefined)[] = [];
+  const timesS: (number | undefined)[] = [];
 
   for (const el of ptEls) {
     const lat = parseFloat(el.getAttribute("lat") ?? "");
@@ -43,6 +55,8 @@ export function parseGpx(gpxText: string): ParsedRoute {
     raw.push({ lat, lon });
     const eleText = el.querySelector("ele")?.textContent;
     elevations.push(eleText ? parseFloat(eleText) : undefined);
+    const timeMs = Date.parse(el.querySelector("time")?.textContent ?? "");
+    timesS.push(Number.isNaN(timeMs) ? undefined : timeMs / 1000);
   }
 
   if (raw.length < 2) {
@@ -51,11 +65,20 @@ export function parseGpx(gpxText: string): ParsedRoute {
 
   const points: RoutePoint[] = [];
   let cumulative = 0;
+  let movingDistanceM = 0;
+  let movingTimeS = 0;
   for (let i = 0; i < raw.length; i++) {
     const next = raw[i + 1];
     const segBearing = next ? bearing(raw[i], next) : points[i - 1]?.bearingDeg ?? 0;
     if (i > 0) {
-      cumulative += haversineDistance(raw[i - 1], raw[i]);
+      const segM = haversineDistance(raw[i - 1], raw[i]);
+      cumulative += segM;
+      const t0 = timesS[i - 1];
+      const t1 = timesS[i];
+      if (t0 !== undefined && t1 !== undefined && t1 > t0 && segM / (t1 - t0) >= MOVING_THRESHOLD_MPS) {
+        movingDistanceM += segM;
+        movingTimeS += t1 - t0;
+      }
     }
     points.push({
       lat: raw[i].lat,
@@ -75,6 +98,8 @@ export function parseGpx(gpxText: string): ParsedRoute {
     name,
     points,
     totalDistanceM: cumulative,
+    movingSpeedMps:
+      movingTimeS >= MIN_MOVING_TIME_S ? movingDistanceM / movingTimeS : undefined,
   };
 }
 

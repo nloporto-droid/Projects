@@ -20,6 +20,21 @@ export function toMetersPerSecond(value: number, unit: PaceUnit): number {
   }
 }
 
+/** Inverse of toMetersPerSecond, rounded to a sensible precision for the unit. */
+export function fromMetersPerSecond(ms: number, unit: PaceUnit): number {
+  if (ms <= 0 || !Number.isFinite(ms)) return 0;
+  const raw =
+    unit === "mph"
+      ? (ms * 3600) / MI_IN_M
+      : unit === "kmh"
+        ? (ms * 3600) / KM_IN_M
+        : unit === "minPerMi"
+          ? MI_IN_M / (ms * 60)
+          : KM_IN_M / (ms * 60);
+  const digits = unit === "mph" || unit === "kmh" ? 1 : 2;
+  return Number(raw.toFixed(digits));
+}
+
 export interface TimedPoint extends RoutePoint {
   /** Seconds elapsed since ride start when the rider reaches this point. */
   elapsedS: number;
