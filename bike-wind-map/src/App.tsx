@@ -77,7 +77,7 @@ export default function App() {
   }
 
   async function handleLoadSample() {
-    const res = await fetch("/sample-route.gpx");
+    const res = await fetch(`${import.meta.env.BASE_URL}sample-route.gpx`);
     const text = await res.text();
     handleGpxLoad(text, "sample-route.gpx");
   }
