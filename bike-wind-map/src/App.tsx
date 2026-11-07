@@ -11,6 +11,9 @@ import {
   type TimedPoint,
 } from "./lib/pace";
 import { fetchWindForRoute, type WindResult } from "./lib/wind";
+import { buildEffortProfile, routeHasElevation } from "./lib/profile";
+import { riderParams } from "./lib/power";
+import { ElevationProfile } from "./components/ElevationProfile";
 import { formatDistance, formatClockTime, formatSpeed } from "./lib/units";
 
 const MI_IN_M = 1609.344;
@@ -34,7 +37,10 @@ export default function App() {
     paceValue: 15,
     paceUnit: "mph",
     sampleIntervalMi: 2,
+    riderWeightLb: 180,
+    position: "hoods",
   });
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const [windResult, setWindResult] = useState<WindResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,6 +54,18 @@ export default function App() {
     if (Number.isNaN(startTime.getTime()) || speedMps <= 0) return null;
     return estimateArrivalTimes(samples, startTime, speedMps);
   }, [route, controls]);
+
+  const profile = useMemo(() => {
+    if (!route || !(controls.riderWeightLb > 0)) return null;
+    return buildEffortProfile(
+      route,
+      windResult?.samples ?? [],
+      toMetersPerSecond(controls.paceValue, controls.paceUnit),
+      riderParams(controls.riderWeightLb, controls.position)
+    );
+  }, [route, windResult, controls]);
+
+  const hoverPoint = profile && hoverIdx !== null ? profile.points[hoverIdx] : null;
 
   const rideDurationS = timedSamplePoints
     ? timedSamplePoints[timedSamplePoints.length - 1]?.elapsedS ?? 0
@@ -126,6 +144,9 @@ export default function App() {
             {timedSamplePoints && (
               <div>Est. ride time: {formatDuration(rideDurationS)}</div>
             )}
+            {!routeHasElevation(route) && (
+              <div>No elevation data in this file, so the effort graph is unavailable.</div>
+            )}
           </div>
         )}
 
@@ -153,10 +174,16 @@ export default function App() {
       </aside>
 
       <main className="map-wrap">
-        <MapView
-          routePoints={route?.points ?? []}
-          windSamples={windResult?.samples ?? []}
-        />
+        <div className="map-area">
+          <MapView
+            routePoints={route?.points ?? []}
+            windSamples={windResult?.samples ?? []}
+            hoverPoint={hoverPoint}
+          />
+        </div>
+        {profile && (
+          <ElevationProfile profile={profile} hoverIdx={hoverIdx} onHover={setHoverIdx} />
+        )}
       </main>
     </div>
   );
