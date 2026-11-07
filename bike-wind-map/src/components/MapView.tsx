@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
   Polyline,
   Marker,
+  CircleMarker,
   Popup,
   useMap,
   useMapEvents,
@@ -11,6 +12,7 @@ import {
 import L from "leaflet";
 import type { RoutePoint } from "../lib/gpx";
 import type { WindSample } from "../lib/wind";
+import { windEffectColor } from "../lib/windColor";
 import {
   formatSpeed,
   formatDistance,
@@ -21,33 +23,8 @@ import {
 interface Props {
   routePoints: RoutePoint[];
   windSamples: WindSample[];
-}
-
-/** Red (headwind) -> amber (crosswind) -> green (tailwind), based on how much
- * of the wind is working against (-1) or for (+1) the rider. */
-function windEffectColor(sample: WindSample): string {
-  if (sample.windSpeedMs < 0.1) return "#9ca3af"; // calm, gray
-  const t = Math.max(-1, Math.min(1, sample.tailwindMs / sample.windSpeedMs));
-  if (t >= 0) {
-    // 0 -> amber (#f59e0b), 1 -> green (#16a34a)
-    return lerpColor("#f59e0b", "#16a34a", t);
-  }
-  // 0 -> amber, -1 -> red (#dc2626)
-  return lerpColor("#f59e0b", "#dc2626", -t);
-}
-
-function lerpColor(a: string, b: string, t: number): string {
-  const pa = hexToRgb(a);
-  const pb = hexToRgb(b);
-  const r = Math.round(pa.r + (pb.r - pa.r) * t);
-  const g = Math.round(pa.g + (pb.g - pa.g) * t);
-  const bch = Math.round(pa.b + (pb.b - pa.b) * t);
-  return `rgb(${r}, ${g}, ${bch})`;
-}
-
-function hexToRgb(hex: string) {
-  const n = parseInt(hex.slice(1), 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  /** Position being hovered on the elevation graph, shown as a dot on the route. */
+  hoverPoint?: { lat: number; lon: number } | null;
 }
 
 /**
@@ -70,7 +47,7 @@ const FULL_BOX: Box = { x0: -26, y0: -16, x1: 26, y1: 32 };
 const ARROW_BOX: Box = { x0: -16, y0: -16, x1: 16, y1: 16 };
 
 function windArrowIcon(sample: WindSample, tier: DetailTier): L.DivIcon {
-  const color = windEffectColor(sample);
+  const color = windEffectColor(sample.windSpeedMs, sample.tailwindMs);
 
   if (tier === "dot") {
     return L.divIcon({
@@ -215,7 +192,18 @@ function FitBounds({ points }: { points: RoutePoint[] }) {
   return null;
 }
 
-export function MapView({ routePoints, windSamples }: Props) {
+/** Leaflet doesn't notice when its container changes size (e.g. the graph panel appearing). */
+function KeepSizeInSync() {
+  const map = useMap();
+  useEffect(() => {
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
+export function MapView({ routePoints, windSamples, hoverPoint }: Props) {
   const polylinePositions = useMemo<[number, number][]>(
     () => routePoints.map((p) => [p.lat, p.lon]),
     [routePoints]
@@ -242,6 +230,15 @@ export function MapView({ routePoints, windSamples }: Props) {
         </>
       )}
       <WindMarkers samples={windSamples} />
+      {hoverPoint && (
+        <CircleMarker
+          center={[hoverPoint.lat, hoverPoint.lon]}
+          radius={7}
+          interactive={false}
+          pathOptions={{ color: "#ffffff", weight: 2, fillColor: "#7c3aed", fillOpacity: 1 }}
+        />
+      )}
+      <KeepSizeInSync />
     </MapContainer>
   );
 }

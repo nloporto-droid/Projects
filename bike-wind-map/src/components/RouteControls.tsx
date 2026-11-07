@@ -1,10 +1,14 @@
 import { fromMetersPerSecond, toMetersPerSecond, type PaceUnit } from "../lib/pace";
+import { RIDING_POSITIONS, type RidingPosition } from "../lib/power";
 
 export interface ControlsState {
   startTime: string; // datetime-local value
   paceValue: number;
   paceUnit: PaceUnit;
   sampleIntervalMi: number;
+  /** Rider + bike + gear, lb. Used for the effort estimate. */
+  riderWeightLb: number;
+  position: RidingPosition;
 }
 
 interface Props {
@@ -90,6 +94,30 @@ export function RouteControls({ value, onChange, onSubmit, disabled, loading }: 
             onChange={(e) => set("sampleIntervalMi", parseFloat(e.target.value))}
           />
           <span className="unit-suffix">mi along route</span>
+        </div>
+      </label>
+
+      <label className="field">
+        <span>Rider + bike weight (for effort estimate)</span>
+        <div className="field-row">
+          <input
+            type="number"
+            min={50}
+            step="1"
+            value={value.riderWeightLb}
+            onChange={(e) => set("riderWeightLb", parseFloat(e.target.value))}
+          />
+          <span className="unit-suffix">lb</span>
+          <select
+            value={value.position}
+            onChange={(e) => set("position", e.target.value as RidingPosition)}
+          >
+            {Object.entries(RIDING_POSITIONS).map(([key, { label }]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
       </label>
 

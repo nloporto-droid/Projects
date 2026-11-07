@@ -21,6 +21,22 @@ actually be riding each stretch of road — not just the wind right now.
    for the full breakdown (arrival time, wind speed, gusts, tailwind and
    crosswind components).
 
+### Elevation, wind & effort graph
+
+When the GPX has elevation data, a graph appears under the map showing the
+elevation profile with the forecast wind speed overlaid (colored red/amber/green
+by head/cross/tailwind), and a power strip below it with your predicted
+average effort in watts. Hover the graph to read off elevation, grade, wind
+and watts at that point; the spot is mirrored on the map.
+
+Watts come from a standard steady-state cycling power model (gravity +
+rolling resistance + aero drag, 97.5% drivetrain efficiency) at your planned
+pace, using the rider + bike weight and riding position you enter. Wind is
+interpolated between forecast samples, resolved against your direction of
+travel, and scaled to 70% of the 10 m forecast to approximate rider height.
+Descents that need no pedaling count as 0 W. Before a forecast is fetched,
+the estimate assumes still air.
+
 Forecasts are only available for roughly the next 16 days (Open-Meteo's
 forecast window); points whose estimated arrival time falls outside that
 window, or in the past, are flagged rather than silently dropped.

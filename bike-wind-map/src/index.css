@@ -55,7 +55,105 @@ body {
 
 .map-wrap {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-area {
+  flex: 1;
+  min-height: 0;
   position: relative;
+}
+
+.profile-panel {
+  flex: none;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 8px 12px 6px;
+  z-index: 1;
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.profile-title {
+  font-weight: 600;
+}
+
+.profile-sub {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.profile-readout {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-chart {
+  width: 100%;
+}
+
+.profile-chart svg {
+  display: block;
+}
+
+.profile-chart .grid-line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.profile-chart .axis-text {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.profile-chart .axis-unit {
+  font-size: 10px;
+  fill: var(--muted);
+  font-weight: 600;
+}
+
+.profile-chart .avg-label {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.profile-chart .ele-area {
+  fill: #cbd5e1;
+  opacity: 0.7;
+}
+
+.profile-chart .ele-line {
+  fill: none;
+  stroke: #64748b;
+  stroke-width: 1.5;
+}
+
+.profile-chart .cursor-line {
+  stroke: var(--text);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+
+.profile-chart .cursor-dot {
+  fill: #475569;
+  stroke: white;
+  stroke-width: 1.5;
+}
+
+.profile-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.3;
 }
 
 .map {
