@@ -13,11 +13,28 @@ const M_TO_FT = 3.28084;
 const MI_IN_M = 1609.344;
 
 const MARGIN = { left: 46, right: 40, top: 16 };
-const ELE_H = 104;
-const GAP = 16;
-const WATTS_H = 44;
 const AXIS_H = 22;
-const HEIGHT = MARGIN.top + ELE_H + GAP + WATTS_H + AXIS_H;
+
+/** Panel heights in px. Compact is for phones, where the map needs the room. */
+function dimensions(compact: boolean) {
+  const eleH = compact ? 64 : 104;
+  const gap = compact ? 10 : 16;
+  const wattsH = compact ? 30 : 44;
+  return { eleH, gap, wattsH, height: MARGIN.top + eleH + gap + wattsH + AXIS_H };
+}
+
+const COMPACT_QUERY = "(max-width: 720px), (max-height: 500px)";
+
+function useCompact(): boolean {
+  const [compact, setCompact] = useState(() => window.matchMedia(COMPACT_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(COMPACT_QUERY);
+    const onChange = () => setCompact(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return compact;
+}
 
 const WATTS_COLOR = "#7c3aed";
 
@@ -35,6 +52,8 @@ function distanceTicks(totalMi: number): number[] {
 export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
+  const compact = useCompact();
+  const { eleH, gap, wattsH, height } = dimensions(compact);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -48,7 +67,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
   const { points, totalDistanceM } = profile;
   const plotW = Math.max(50, width - MARGIN.left - MARGIN.right);
   const eleTop = MARGIN.top;
-  const wattsTop = MARGIN.top + ELE_H + GAP;
+  const wattsTop = MARGIN.top + eleH + gap;
 
   const chart = useMemo(() => {
     const x = (d: number) => MARGIN.left + (d / totalDistanceM) * plotW;
@@ -58,19 +77,19 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
     const pad = Math.max((eleHi - eleLo) * 0.1, 3);
     const eleMin = eleLo - pad;
     const eleMax = eleHi + pad;
-    const yEle = (e: number) => eleTop + ELE_H * (1 - (e - eleMin) / (eleMax - eleMin));
+    const yEle = (e: number) => eleTop + eleH * (1 - (e - eleMin) / (eleMax - eleMin));
 
     const windMaxMph = niceCeil(msToMph(profile.maxWindMs), 5, 10);
-    const yWind = (ms: number) => eleTop + ELE_H * (1 - msToMph(ms) / windMaxMph);
+    const yWind = (ms: number) => eleTop + eleH * (1 - msToMph(ms) / windMaxMph);
 
     const wattsMax = niceCeil(Math.max(...points.map((p) => p.watts)), 50, 100);
-    const yWatts = (w: number) => wattsTop + WATTS_H * (1 - w / wattsMax);
+    const yWatts = (w: number) => wattsTop + wattsH * (1 - w / wattsMax);
 
     const eleLine = points.map((p) => `${x(p.distanceM)},${yEle(p.eleM)}`).join(" ");
     const areaPath =
-      `M${x(0)},${eleTop + ELE_H} L` +
+      `M${x(0)},${eleTop + eleH} L` +
       points.map((p) => `${x(p.distanceM)},${yEle(p.eleM)}`).join(" L") +
-      ` L${x(totalDistanceM)},${eleTop + ELE_H} Z`;
+      ` L${x(totalDistanceM)},${eleTop + eleH} Z`;
     const wattsLine = points.map((p) => `${x(p.distanceM)},${yWatts(p.watts)}`).join(" ");
 
     const windSegments = profile.hasWind
@@ -106,7 +125,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
       windMaxMph,
       wattsMax,
     };
-  }, [profile, points, totalDistanceM, plotW, eleTop, wattsTop]);
+  }, [profile, points, totalDistanceM, plotW, eleTop, eleH, wattsTop, wattsH]);
 
   function handlePointer(e: React.PointerEvent<SVGRectElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -118,7 +137,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
   const totalMi = totalDistanceM / MI_IN_M;
 
   return (
-    <section className="profile-panel">
+    <section className={compact ? "profile-panel profile-panel--compact" : "profile-panel"}>
       <div className="profile-header">
         <div className="profile-title">
           Elevation, wind &amp; effort
@@ -157,7 +176,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
       </div>
 
       <div ref={wrapRef} className="profile-chart">
-        <svg width={width} height={HEIGHT} role="img" aria-label="Elevation, wind and power profile">
+        <svg width={width} height={height} role="img" aria-label="Elevation, wind and power profile">
           {/* Elevation panel */}
           {chart.eleTicks.map((e, i) => (
             <g key={`e${i}`}>
@@ -173,7 +192,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
               </text>
             </g>
           ))}
-          <text x={MARGIN.left - 6} y={eleTop - 6} textAnchor="end" className="axis-unit">
+          <text x={MARGIN.left - 6} y={eleTop - 8} textAnchor="end" className="axis-unit">
             ft
           </text>
           <path d={chart.areaPath} className="ele-area" />
@@ -186,13 +205,13 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
                 <text
                   key={`w${i}`}
                   x={MARGIN.left + plotW + 6}
-                  y={eleTop + ELE_H * (1 - w / chart.windMaxMph) + 3}
+                  y={eleTop + eleH * (1 - w / chart.windMaxMph) + 3}
                   className="axis-text"
                 >
                   {w}
                 </text>
               ))}
-              <text x={MARGIN.left + plotW + 6} y={eleTop - 6} className="axis-unit">
+              <text x={MARGIN.left + plotW + 6} y={eleTop - 8} className="axis-unit">
                 mph
               </text>
               {chart.windSegments.map((s, i) => (
@@ -214,8 +233,8 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
           <line
             x1={MARGIN.left}
             x2={MARGIN.left + plotW}
-            y1={wattsTop + WATTS_H}
-            y2={wattsTop + WATTS_H}
+            y1={wattsTop + wattsH}
+            y2={wattsTop + wattsH}
             className="grid-line"
           />
           <line
@@ -228,10 +247,10 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
           <text x={MARGIN.left - 6} y={wattsTop + 3} textAnchor="end" className="axis-text">
             {chart.wattsMax}
           </text>
-          <text x={MARGIN.left - 6} y={wattsTop + WATTS_H + 3} textAnchor="end" className="axis-text">
+          <text x={MARGIN.left - 6} y={wattsTop + wattsH + 3} textAnchor="end" className="axis-text">
             0
           </text>
-          <text x={MARGIN.left - 6} y={wattsTop + WATTS_H / 2 + 3} textAnchor="end" className="axis-unit">
+          <text x={MARGIN.left - 6} y={wattsTop + wattsH / 2 + 3} textAnchor="end" className="axis-unit">
             W
           </text>
           <polyline points={chart.wattsLine} fill="none" stroke={WATTS_COLOR} strokeWidth={1.5} />
@@ -260,7 +279,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
             <text
               key={mi}
               x={chart.x(mi * MI_IN_M)}
-              y={HEIGHT - 6}
+              y={height - 6}
               textAnchor="middle"
               className="axis-text"
             >
@@ -275,7 +294,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
                 x1={chart.x(hover.distanceM)}
                 x2={chart.x(hover.distanceM)}
                 y1={eleTop}
-                y2={wattsTop + WATTS_H}
+                y2={wattsTop + wattsH}
                 className="cursor-line"
               />
               <circle cx={chart.x(hover.distanceM)} cy={chart.yEle(hover.eleM)} r={3.5} className="cursor-dot" />
@@ -292,7 +311,7 @@ export function ElevationProfile({ profile, hoverIdx, onHover }: Props) {
             x={MARGIN.left}
             y={eleTop}
             width={plotW}
-            height={ELE_H + GAP + WATTS_H}
+            height={eleH + gap + wattsH}
             fill="transparent"
             onPointerMove={handlePointer}
             onPointerDown={handlePointer}
